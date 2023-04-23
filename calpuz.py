@@ -78,9 +78,6 @@ class Board:
         return True
 
     def dump(self):
-        print('{} wide'.format(self.width))
-        print('{} high'.format(self.height))
-        print('Pattern:')
         for r in self.rows:
             for c in r:
                 if c:
@@ -96,12 +93,16 @@ class Board:
         return x / self.width, x % self.width
 
 class Piece:
+    pieces = []
+    idx = 0         # use this to itterate through pieces, by 0-based index
+
     def __init__(self, rows):
         # Save parameters passed in object
         self.width = len(rows[0])
         self.height = len(rows)
         self.rows = rows
         self.rotation = 0   # Track current rotation for the piece
+        Piece.pieces.append(self)
 
     def rotate(self):
         # Create new rows, where width is height, heith is width.
@@ -123,9 +124,6 @@ class Piece:
         self.rotation = (self.rotation + 1) % 4     # 0=none, 1=CCW once, 2=CCW twice, 3=CCW thrice
 
     def dump(self):
-        print('{} wide'.format(self.width))
-        print('{} high'.format(self.height))
-        print('Pattern:')
         for r in self.rows:
             for c in r:
                 if c:
@@ -134,7 +132,30 @@ class Piece:
                     sys.stdout.write('0')
             sys.stdout.write('\n')
 
+    @classmethod
+    def dumpAll(cls):
+        for p in Piece.pieces:
+            p.dump()
+            print('='*10)
+
+    @classmethod
+    def nextPiece(cls):
+        Piece.idx = (Piece.idx + 1) % len(Piece.pieces)
+        return Piece.pieces[Piece.idx]
+
+    @classmethod
+    def firstPiece(cls):
+        Piece.idx = 0
+        return Piece.pieces[Piece.idx]
+    
+    @classmethod
+    def numPieces(cls):
+        return len(Piece.pieces)
+
 def main():
+
+    # Establish the board on which to place the pieces.
+    board = Board(datetime.now())
 
     # Establish all pieces used. Initial orientation for each is arbitrary.
     piece = \
@@ -149,10 +170,11 @@ def main():
             Piece([[1,1,1],[1,1,1]]), \
         ]
 
-    # brd = Board(datetime.now())
-    # brd.dump()
-    for p in piece:
-        p.dump()
+    board.dump()
+
+    print('\n' + 'WM' * 10 + '\n')
+
+    Piece.dumpAll()
     return
 
     # a = [[0,1,2],[10,11,12]]
