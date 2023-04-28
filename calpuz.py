@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import sys
+import os
 from datetime import datetime
 from copy import deepcopy
 
@@ -21,12 +22,16 @@ class Board:
         self.month = self.date.month
         self.day = self.date.day
         self.locations = self.width * self.height
+        self.hid = 0
 
         self.reset()
 
     def reset(self):
         # Represent board as 2D array.
         self.rows = [[0]*self.height for i in range(self.width)]
+
+        # DEBUG: to track deepest fit.
+        self.hrows = [[0]*self.height for i in range(self.width)]
 
         # Establish unusable spots on the board.
         self.rows[0][6] = 9
@@ -43,8 +48,8 @@ class Board:
     def setDate(self):
         m = self.date.month - 1  # get 0-based month {0..11}
         d = self.day - 1    # get 0-based day of month {0..20}
-        self.rows[int(m / 12)][int(m % 12)] = 1
-        self.rows[int(2 + d/7)][int(d % 7)] = 1
+        self.rows[int(m / 12)][int(m % 12)] = 9
+        self.rows[int(2 + d/7)][int(d % 7)] = 9
 
     ##
      # Place a piece on the board.
@@ -62,7 +67,7 @@ class Board:
 
         # Invalid if piece rectangle goes outside of board rectangle. This should be true regardless
         # of the actual shape of the piece.
-        if (x0 + piece.width) >= self.width or (y0 + piece.height) >= self.height:
+        if (x0 + piece.width) > self.width or (y0 + piece.height) > self.height:
             return False
     
         # Superimpose piece onto board, by simpy adding it's ID to overlapping spots.
@@ -74,12 +79,11 @@ class Board:
                     return False
                 # Continue to fill piece into board.
                 self.rows[y0+y][x0+x] += piece.rows[y][x] * piece.id
-    
-        # # Invalid if any part of the piece overlaps either board spots that cannot be covered, or any other piece.
-        # # Restore original board, and return failure to place.
-        # if not self.isBoardValid():
-        #     self.rows = deepcopy(brdCopy)
-        #     return False
+
+        # DEBUG: track highest piece id successfully placed.
+        if piece.id > self.hid:
+            self.hrows = deepcopy(self.rows)
+            self.hid = piece.id
         
         # Return successful placement.
         return True
@@ -112,6 +116,12 @@ class Board:
 
     def dump(self):
         for r in self.rows:
+            for c in r:
+                sys.stdout.write(str(c))
+            sys.stdout.write('\n')
+
+    def dumpDeepestFit(self):
+        for r in self.hrows:
             for c in r:
                 sys.stdout.write(str(c))
             sys.stdout.write('\n')
@@ -153,6 +163,7 @@ class Piece:
         self.height = self.width
         self.width = newWidth
         self.rotation = (self.rotation + 1) % 4     # 0=none, 1=CCW once, 2=CCW twice, 3=CCW thrice
+        return self.rotation    # return final rotation - rotates to zero if all rotations exhausted
 
     def dump(self):
         for r in self.rows:
@@ -166,11 +177,14 @@ class Piece:
             p.dump()
             print('='*10)
 
-    @classmethod
-    def nextPiece(cls):
-        Piece.idx = (Piece.idx + 1) % len(Piece.pieces)
-        if Piece.idx > 0:
-            return Piece.pieces[Piece.idx]
+    ##
+     # Get next piece, given piece objects were instantiated in order.
+     # \returns next piece object, or None if no more
+     ##
+    def nextPiece(self):
+        idx = (self.id) % len(Piece.pieces)
+        if idx > 0:
+            return Piece.pieces[idx]
         else:
             return None
 
@@ -183,24 +197,36 @@ class Piece:
     def numPieces(cls):
         return len(Piece.pieces)
 
+##
+ # Recursive function to try all placements and rotations for a given piece.
+ # \param board board object to receive the pieces
+ # \param piece next piece to place
+ # \returns True when last piece has been placed
+ ##
 recurse = 0
 def fit(board, piece):
     global recurse
     recurse += 1
-    print(recurse)
+    # print(recurse)
     for pos in range(board.locations):
         for rotation in range(4):
             if board.place(piece, pos):
-                nextPiece = Piece.nextPiece()
+                os.system('clear')
+                board.dump()
+                nextPiece = piece.nextPiece()
                 if nextPiece:
                     if fit(board, nextPiece):
+                        recurse -= 1
                         return True
                     else:
                         # Remove from board before trying more places and rotations.
                         board.remove(piece, pos)
+                        piece.rotate()
                 else:
+                    recurse -= 1
                     return True    # No more pieces to place
     # All positions and rotations tried: got up a level and try again.
+    recurse -= 1
     return False
 
 def main():
@@ -226,6 +252,7 @@ def main():
         board.dump()
     else:
         print('No solution found')
+        board.dumpDeepestFit()
 
     # pos = 21
 
