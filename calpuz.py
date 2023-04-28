@@ -68,6 +68,10 @@ class Board:
         # Invalid if piece rectangle goes outside of board rectangle. This should be true regardless
         # of the actual shape of the piece.
         if (x0 + piece.width) > self.width or (y0 + piece.height) > self.height:
+            # DEBUG
+            if piece.id == 1:
+                print('<><><> Off board at ({},{}) <><><>'.format(x0, y0))
+                piece.dump()
             return False
     
         # Superimpose piece onto board, by simpy adding it's ID to overlapping spots.
@@ -76,14 +80,18 @@ class Board:
                 # If piece would overlap an invalid spot, or another piece, restore board and return failure.
                 if piece.rows[y][x] and self.rows[y0+y][x0+x]:
                     self.rows = deepcopy(brdCopy)
+                    # DEBUG
+                    if piece.id == 1:
+                        print('<><><> Overlap, rotation {}, at ({},{}) <><><>'.format(piece.rotation, x, y))
+                        piece.dump()
                     return False
                 # Continue to fill piece into board.
                 self.rows[y0+y][x0+x] += piece.rows[y][x] * piece.id
 
-        # DEBUG: track highest piece id successfully placed.
-        if piece.id > self.hid:
-            self.hrows = deepcopy(self.rows)
-            self.hid = piece.id
+        # # DEBUG: track highest piece id successfully placed.
+        # if piece.id > self.hid:
+        #     self.hrows = deepcopy(self.rows)
+        #     self.hid = piece.id
         
         # Return successful placement.
         return True
@@ -138,12 +146,19 @@ class Piece:
 
     def __init__(self, rows):
         # Save parameters passed in object
-        self.width = len(rows[0])
-        self.height = len(rows)
-        self.rows = rows
-        self.rotation = 0   # Track current rotation for the piece
+        self.startRows = deepcopy(rows)
         self.id = len(Piece.pieces) + 1    # 1-based ID value for piece
+        self.reset()
         Piece.pieces.append(self)
+
+    ##
+     # Reset piece to initial state.
+     ##
+    def reset(self):
+        self.rows = deepcopy(self.startRows)
+        self.width = len(self.rows[0])
+        self.height = len(self.rows)
+        self.rotation = 0   # Track current rotation for the piece
 
     def rotate(self):
         # Create new rows, where width is height, heith is width.
@@ -204,15 +219,24 @@ class Piece:
  # \returns True when last piece has been placed
  ##
 recurse = 0
+highestId = 0
 def fit(board, piece):
     global recurse
+    global highestId
     recurse += 1
     # print(recurse)
     for pos in range(board.locations):
+        piece.reset()   # reset piece back to its initial rotation
         for rotation in range(4):
             if board.place(piece, pos):
-                os.system('clear')
-                board.dump()
+                # DEBUG: track highest piece ID placed
+                if piece.id > highestId:
+                    highestId = piece.id
+                # DEBUG: show every piece 1 placement
+                if piece.id == 1:
+                    # os.system('clear')
+                    print('==={}===='.format(highestId))
+                    board.dump()
                 nextPiece = piece.nextPiece()
                 if nextPiece:
                     if fit(board, nextPiece):
@@ -225,6 +249,10 @@ def fit(board, piece):
                 else:
                     recurse -= 1
                     return True    # No more pieces to place
+            else:
+                # Piece could not be placed, due to fit on board, or overlap.
+                # Go to next rotation.
+                piece.rotate()
     # All positions and rotations tried: got up a level and try again.
     recurse -= 1
     return False
