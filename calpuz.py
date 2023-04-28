@@ -73,6 +73,17 @@ class Board:
                 print('<><><> Off board at ({},{}) <><><>'.format(x0, y0))
                 piece.dump()
             return False
+        
+        # TODO: invalid if placement would create a bounded void that no piece can fit into. This is
+        # a spot or group of spots that would be bounded by one of the following:
+        #   o edge of board
+        #   o non-void spots of the piece being placed
+        #   o non-void spots of other pieces already placed
+        # This will probably be the best pruning of the search branches that can be done.
+        # Could just pick a void spot on the board, created by the part placement (overlap between
+        # the void on the piece and a void on the board), then searching out from that void to define the
+        # shape and size of the empty space. If no piece could fit into this space, then there is no point in
+        # trying that piece placement. May be able to narrow this to only pieces that have not be placed..
     
         # Superimpose piece onto board, by simpy adding it's ID to overlapping spots.
         for y in range(len(piece.rows)):
