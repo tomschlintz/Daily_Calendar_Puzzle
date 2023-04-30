@@ -55,15 +55,15 @@ class Board:
      # Place a piece on the board.
      # The piece rotation is already established before passing it to this method, so we don't worry about that here.
      # \param piece piece object to be placed
-     # \param x linear location - this is 0 at (0,0), incrementing across each column, then down each row
+     # \param pos linear location - this is 0 at (0,0), incrementing across each column, then down each row
      # \returns True if valid - fits in board and does not overlap any invalid spot or other piece already placed
      ##
-    def place(self, piece, x):
+    def place(self, piece, pos):
         # Copy board, in case we fail to place the part.
         brdCopy = deepcopy(self.rows)
 
         # Derive coord of piece upper-left corner from linear location
-        x0, y0 = self.coordFromLinear(x)
+        x0, y0 = self.coordFromLinear(pos)
 
         # Invalid if piece rectangle goes outside of board rectangle. This should be true regardless
         # of the actual shape of the piece.
@@ -84,7 +84,20 @@ class Board:
                 # Continue to fill piece into board.
                 self.rows[y0+y][x0+x] += piece.rows[y][x] * piece.id
 
-        
+        # Check for too-small voids left by part, and disqualify if any found for the part.
+        MIN_VOID_COUNT = 5          # minimum contiguous voids, since the smallest part overlaps 5 spots
+        count = sys.maxsize         # in case there are no voids for the part
+        c, r = piece.nextVoid()     # get next void coordinate for piece
+        while (c,r) != (-1,-1):
+            c += x0
+            r += y0     # convert to board coordinates
+            count = countVoids(self, c, r, MIN_VOID_COUNT)
+            if count < MIN_VOID_COUNT:
+                # Piece would leave a void that where no piece could fit: remove the piece and return failure
+                self.remove(piece, pos)
+                return False
+            c, r = piece.nextVoid()     # get next void coordinate for piece
+
         # TODO: invalid if placement would create a bounded void that no piece can fit into. This is
         # a spot or group of spots that would be bounded by one of the following:
         #   o edge of board
@@ -130,6 +143,14 @@ class Board:
                 if c > 1:
                     return False
         return True
+    
+    ##
+     # Determine if a given coordinate on the board is "placeable", by the following criteria:
+     #      o Must be within the boundaries of the board rectangle (not out of bounds of self.rows[][])
+     #      o Must not be on an excluded/reserved spot, or selected for month or date (contains '9'), or overlapped by a placed piece
+     ##
+    def isPlaceable(self, row, col):
+        return (row >= 0) and (col >= 0) and (row < self.width) and (col < self.height) and (self.rows[row][col] == 0)
 
     def dump(self):
         for r in self.rows:
@@ -168,7 +189,7 @@ class Piece:
         self.width = len(self.rows[0])
         self.height = len(self.rows)
         self.rotation = 0   # Track current rotation for the piece
-        self.lastVoidPos = -1
+        self.lastVoidPos = -1   # for use with nextVoid() method
 
     def rotate(self):
         # Create new rows, where width is height, heith is width.
@@ -228,7 +249,7 @@ class Piece:
         return -1, -1
 
     ##
-     # Get (col,row) of 2D board array from linear increment.
+     # Get (col,row) of 2D piece from linear position, starting with (0,0), and progressing left-right, then top-down.
      ##
     def coordFromLinear(self, x):
         return int(x % self.width), int(x / self.width)
@@ -247,6 +268,42 @@ class Piece:
     @classmethod
     def numPieces(cls):
         return len(Piece.pieces)
+
+##
+ # Given a board, and a row and column coordinate, count the number of contiguous voids,
+ # up to a maximum. A "void" is considered any spot on the board not overlapped with a piece
+ # and not taken by pre-filled spots or by month or date picked (spots with value 0).
+ # Note this does not consider the shape of the void, only that all voids are connected.
+ # Called recursively to seek out all contiguous voids.
+ # This is used to look see if a placed part would create a void that is too small for any
+ # other piece to fill. Because our smallest part fills 5 spots on the board, any void
+ # left after placing a part that leaves a void with less than 5 spots would make it
+ # impossible to place another piece in that spot.
+ # \param board Board object
+ # \param row 0-based row
+ # \param col 0-based column
+ # \param max stop after this many contiguous voids found (default = 5)
+ # \returns the number of contiguous voids from the starting position
+ ##
+def countVoids(board, col, row, max=5):
+    voids = []  # keep list of voids found, so we can tell if we've been here before
+    if board.isPlaceable(row, col) and ((row,col) not in voids):
+        # This is a spot on the board and it is void AND we've not already counted this spot - count and recurse further to look for others.
+        voids.append((row, col))
+        for dir in range(4):    # 0=left, 1=up, 2=right, 3=down - direction to check next
+            if dir == 0:    # try left next
+                countVoids(board, col-1, row,   max)
+            elif dir == 1:  # try up next
+                countVoids(board, col,   row-1, max)
+            elif dir == 2:  # try right next
+                countVoids(board, col+1, row,   max)
+            elif dir == 3:  # try down next
+                countVoids(board, col,   row+1, max)
+        return len(voids)   # return count of contiguous voids found
+    else:
+        # This spot on the board is not void - return maxsize to indicate as such, and so the value returned
+        # for no voids found still satifies the minumum contiguous void count, if we have not voids in the part.
+        return sys.maxsize
 
 ##
  # Recursive function to try all placements and rotations for a given piece.
@@ -310,14 +367,6 @@ def main():
             Piece([[1,1,1],[0,1,1]]), \
             Piece([[1,1,1],[1,1,1]]), \
         ]
-    
-    for p in Piece.pieces:
-        print('\nPiece {}'.format(p.id))
-        vc = p.nextVoid()
-        while vc != (-1,-1):
-            print('\t{}'.format(vc))
-            vc = p.nextVoid()
-    return
     
     if fit(board, piece[0]):
         print('Solution found!')
