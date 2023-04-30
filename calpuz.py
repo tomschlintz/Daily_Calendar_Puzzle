@@ -73,6 +73,17 @@ class Board:
                 print('<><><> Off board at ({},{}) <><><>'.format(x0, y0))
                 piece.dump()
             return False
+    
+        # Superimpose piece onto board, by simpy adding it's ID to overlapping spots.
+        for y in range(len(piece.rows)):
+            for x in range(len(piece.rows[0])):
+                # If piece would overlap an invalid spot, or another piece, restore board and return failure.
+                if piece.rows[y][x] and self.rows[y0+y][x0+x]:
+                    self.rows = deepcopy(brdCopy)
+                    return False
+                # Continue to fill piece into board.
+                self.rows[y0+y][x0+x] += piece.rows[y][x] * piece.id
+
         
         # TODO: invalid if placement would create a bounded void that no piece can fit into. This is
         # a spot or group of spots that would be bounded by one of the following:
@@ -84,20 +95,7 @@ class Board:
         # the void on the piece and a void on the board), then searching out from that void to define the
         # shape and size of the empty space. If no piece could fit into this space, then there is no point in
         # trying that piece placement. May be able to narrow this to only pieces that have not be placed..
-    
-        # Superimpose piece onto board, by simpy adding it's ID to overlapping spots.
-        for y in range(len(piece.rows)):
-            for x in range(len(piece.rows[0])):
-                # If piece would overlap an invalid spot, or another piece, restore board and return failure.
-                if piece.rows[y][x] and self.rows[y0+y][x0+x]:
-                    self.rows = deepcopy(brdCopy)
-                    # DEBUG
-                    if piece.id == 1:
-                        print('<><><> Overlap, rotation {}, at ({},{}) <><><>'.format(piece.rotation, x, y))
-                        piece.dump()
-                    return False
-                # Continue to fill piece into board.
-                self.rows[y0+y][x0+x] += piece.rows[y][x] * piece.id
+        # See if placement would leave a bounded void too small for any (remaining) part.
 
         # # DEBUG: track highest piece id successfully placed.
         # if piece.id > self.hid:
@@ -170,6 +168,7 @@ class Piece:
         self.width = len(self.rows[0])
         self.height = len(self.rows)
         self.rotation = 0   # Track current rotation for the piece
+        self.lastVoidPos = -1
 
     def rotate(self):
         # Create new rows, where width is height, heith is width.
@@ -197,12 +196,6 @@ class Piece:
                 sys.stdout.write(str(c))
             sys.stdout.write('\n')
 
-    @classmethod
-    def dumpAll(cls):
-        for p in Piece.pieces:
-            p.dump()
-            print('='*10)
-
     ##
      # Get next piece, given piece objects were instantiated in order.
      # \returns next piece object, or None if no more
@@ -213,6 +206,38 @@ class Piece:
             return Piece.pieces[idx]
         else:
             return None
+
+    ##
+     # Get (col, row) position of each spot of the piece, scanning from the upper-left corner, in 
+     # the current rotation.
+     # \returns the relative (col, row) coordinate of the next void in the piece rectangle in its current rotation, or (-1,-1), if no more
+     ##
+    def nextVoid(self):
+        totalSpots = self.width * self.height
+        if self.lastVoidPos == -1:
+            nextPos = 0
+        else:
+            nextPos = self.lastVoidPos + 1
+        for nextPos in range(nextPos, totalSpots):
+            c, r = self.coordFromLinear(nextPos)
+            if self.rows[r][c] == 0:
+                self.lastVoidPos = nextPos
+                return c, r
+            
+        self.lastVoidPos = -1
+        return -1, -1
+
+    ##
+     # Get (col,row) of 2D board array from linear increment.
+     ##
+    def coordFromLinear(self, x):
+        return int(x % self.width), int(x / self.width)
+
+    @classmethod
+    def dumpAll(cls):
+        for p in Piece.pieces:
+            p.dump()
+            print('='*10)
 
     @classmethod
     def firstPiece(cls):
@@ -285,6 +310,14 @@ def main():
             Piece([[1,1,1],[0,1,1]]), \
             Piece([[1,1,1],[1,1,1]]), \
         ]
+    
+    for p in Piece.pieces:
+        print('\nPiece {}'.format(p.id))
+        vc = p.nextVoid()
+        while vc != (-1,-1):
+            print('\t{}'.format(vc))
+            vc = p.nextVoid()
+    return
     
     if fit(board, piece[0]):
         print('Solution found!')
