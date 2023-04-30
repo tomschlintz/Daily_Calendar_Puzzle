@@ -119,6 +119,22 @@ class Board:
         return True
     
     ##
+     # Place a an 'X' mark on the given location on the board. Used to count voids and debugging.
+     ##
+    def mark(self, col, row):
+        if self.rows[row][col] == 0:
+            self.rows[row][col] = 'X'
+
+    ##
+     # Remove any alpha "marks" from the board, used for counting voids and debugging.
+     ##
+    def removeMarks(self):
+        for y in range(len(self.rows)):
+            for x in range(len(self.rows[0])):
+                if self.rows[y][x] == 'X':
+                    self.rows[y][x] = 0
+
+    ##
      # Assuming the given piece has already been placed at the given location, remove the piece.
      # Caution: only call to remove a piece that is known to be at a given location - this is not checked.
      # \param piece piece object to be placed
@@ -155,7 +171,10 @@ class Board:
     def dump(self):
         for r in self.rows:
             for c in r:
-                sys.stdout.write(str(c))
+                if c <= 9:
+                    sys.stdout.write(str(c))
+                else:
+                    sys.stdout.write(chr(c))    # for displaying marks, not number, for debugging
             sys.stdout.write('\n')
 
     def dumpDeepestFit(self):
@@ -282,14 +301,30 @@ class Piece:
  # \param board Board object
  # \param row 0-based row
  # \param col 0-based column
- # \param max stop after this many contiguous voids found (default = 5)
+ # \param max stop after this many contiguous voids found
  # \returns the number of contiguous voids from the starting position
  ##
-def countVoids(board, col, row, max=5):
-    voids = []  # keep list of voids found, so we can tell if we've been here before
-    if board.isPlaceable(row, col) and ((row,col) not in voids):
+cvRecurse = 0
+cvCount = 0
+def countVoids(board, col, row, max):
+    global cvRecurse
+    global cvCount
+
+    if cvRecurse == 0:
+        cvCount = 0
+    cvRecurse += 1
+    if board.isPlaceable(row, col):
+        board.mark(col, row)    # mark board where we've counted a void - this will also mark it as a non-placeable spot
+        cvCount += 1            # count it
+
+        # Limit to max count of voids
+        if cvCount >= max:
+            cvRecurse -= 1
+            if cvRecurse == 0:
+                board.removeMarks()
+            return cvCount
+            
         # This is a spot on the board and it is void AND we've not already counted this spot - count and recurse further to look for others.
-        voids.append((row, col))
         for dir in range(4):    # 0=left, 1=up, 2=right, 3=down - direction to check next
             if dir == 0:    # try left next
                 countVoids(board, col-1, row,   max)
@@ -299,10 +334,16 @@ def countVoids(board, col, row, max=5):
                 countVoids(board, col+1, row,   max)
             elif dir == 3:  # try down next
                 countVoids(board, col,   row+1, max)
-        return len(voids)   # return count of contiguous voids found
+        cvRecurse -= 1
+        if cvRecurse == 0:
+            board.removeMarks()
+        return cvCount   # return count of contiguous voids found
     else:
         # This spot on the board is not void - return maxsize to indicate as such, and so the value returned
         # for no voids found still satifies the minumum contiguous void count, if we have not voids in the part.
+        cvRecurse -= 1
+        if cvRecurse == 0:
+            board.removeMarks()
         return sys.maxsize
 
 ##
