@@ -45,6 +45,19 @@ class Board:
         # Mark spots on board for date given, as these should not be covered.
         self.setDate()
 
+    ##
+     # Locate all voids on the board, and report the smallest group.
+     # Used to determine if a void has been created that no part could possibly
+     # fit into, for the purpose of pruning fit() recurive branches.
+     ##
+    def smallestVoid(self):
+        self.groupId = 0    # current group ID, incremented for each unique found
+        self.spotGroups[self.width*self.height] = 0 # group ID assignments for each spot on the board
+        self.groupCounts[self.width*self.height] = 0    # count of spots for each group
+
+        # TODO: walk columns, then rows, and group spots that are adjacent in either
+        # TODO: return the smallest of all void groups found.
+
     # Mark spots on board for month and day that can't be covered.
     def setDate(self):
         m = self.date.month - 1  # get 0-based month {0..11}
