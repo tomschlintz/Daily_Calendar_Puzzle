@@ -3,6 +3,7 @@
 import sys
 import os
 from datetime import datetime
+import time
 from copy import deepcopy
 
 ##
@@ -356,20 +357,21 @@ recurse = 0
 highestId = 0
 def fit(board, piece):
     global recurse
-    global highestId
     recurse += 1
     # print(recurse)
     for pos in range(board.locations):
         piece.reset()   # reset piece back to its initial rotation
         for rotation in range(4):
+
+            if piece.id == 2 and pos == 8:
+                pass
+
             if board.place(piece, pos):
                 # DEBUG: track highest piece ID placed
-                if piece.id > highestId:
-                    highestId = piece.id
-                # DEBUG: show every piece 1 placement
-                if piece.id == 1:
+                # DEBUG: show every piece 2 placement
+                if piece.id == 2:
                     # os.system('clear')
-                    print('==={}===='.format(highestId))
+                    print('=======')
                     board.dump()
                 nextPiece = piece.nextPiece()
                 if nextPiece:
@@ -393,8 +395,16 @@ def fit(board, piece):
 
 def main():
 
-    # Establish the board on which to place the pieces.
-    board = Board(datetime.now())
+    if len(sys.argv) > 1:
+        dt = datetime.strptime(sys.argv[1], '%m/%d/%Y')
+    else:
+        dt = datetime.now()
+    dt = datetime.strptime('4/1/2023', '%m/%d/%Y')  # DEBUG
+    print('Solving for {}'.format(dt.strftime('%m/%d/%Y')))
+          
+    startTime = time.time()
+
+    board = Board(dt)
 
     # Establish all pieces used. Initial orientation for each is arbitrary.
     piece = \
@@ -415,6 +425,8 @@ def main():
     else:
         print('No solution found')
         board.dumpDeepestFit()
+
+    print('Time: {:.01fs'.format(time.time() - startTime))
 
     # pos = 21
 
