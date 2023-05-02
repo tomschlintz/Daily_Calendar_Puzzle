@@ -6,6 +6,8 @@ from datetime import datetime
 import time
 from copy import deepcopy
 
+quiet = False
+
 ##
  # Define a "board" object, which represents places to put all the pieces.
  # Any spots on the board that are not placeable are set to 1.
@@ -325,10 +327,11 @@ def fit(board, piece):
         piece.reset()   # reset piece back to its initial rotation
         for rotation in range(4):
             if board.place(piece, pos):
-                if piece.id == 1:
-                    # os.system('clear')
-                    print('=======')
-                    board.dump()
+                if not quiet:
+                    if piece.id == 1:
+                        # os.system('clear')
+                        print('=======')
+                        board.dump()
                 nextPiece = piece.nextPiece()
                 if nextPiece:
                     if fit(board, nextPiece):
@@ -350,6 +353,7 @@ def fit(board, piece):
     return False
 
 def main():
+    global quiet
 
     if len(sys.argv) > 1:
         dt = datetime.strptime(sys.argv[1], '%m/%d/%Y')
@@ -357,6 +361,9 @@ def main():
         dt = datetime.now()
     # dt = datetime.strptime('4/1/2023', '%m/%d/%Y')  # DEBUG
     print('Solving for {}'.format(dt.strftime('%m/%d/%Y')))
+
+    if 'quiet' in sys.argv:
+        quiet = True
           
     startTime = time.time()
 
