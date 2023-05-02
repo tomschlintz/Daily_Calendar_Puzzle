@@ -46,9 +46,9 @@ class Board:
         self.setDate()
 
     ##
-     # Locate all voids on the board, and report the smallest group.
+     # Locate and group contiguous voids on the board, and report the smallest group.
      # Used to determine if a void has been created that no part could possibly
-     # fit into, for the purpose of pruning fit() recurive branches.
+     # fit into, for the purpose of pruning fit() recursive branches.
      ##
     def smallestVoid(self):
         groupId = 0    # 0-based current group ID, incremented for each unique found
@@ -156,37 +156,6 @@ class Board:
         if minVoid < MIN_VOID_COUNT:
             self.remove(piece, pos)
             return False
-
-        # # Check for too-small voids left by part, and disqualify if any found for the part.
-        # MIN_VOID_COUNT = 5          # minimum contiguous voids, since the smallest part overlaps 5 spots
-        # count = sys.maxsize         # in case there are no voids for the part
-        # c, r = piece.nextVoid()     # get next void coordinate for piece
-        # while (c,r) != (-1,-1):
-        #     c += x0
-        #     r += y0     # convert to board coordinates
-        #     count = countVoids(self, c, r, MIN_VOID_COUNT)
-        #     if count < MIN_VOID_COUNT:
-        #         # Piece would leave a void that where no piece could fit: remove the piece and return failure
-        #         self.remove(piece, pos)
-        #         return False
-        #     c, r = piece.nextVoid()     # get next void coordinate for piece
-
-        # TODO: invalid if placement would create a bounded void that no piece can fit into. This is
-        # a spot or group of spots that would be bounded by one of the following:
-        #   o edge of board
-        #   o non-void spots of the piece being placed
-        #   o non-void spots of other pieces already placed
-        # This will probably be the best pruning of the search branches that can be done.
-        # Could just pick a void spot on the board, created by the part placement (overlap between
-        # the void on the piece and a void on the board), then searching out from that void to define the
-        # shape and size of the empty space. If no piece could fit into this space, then there is no point in
-        # trying that piece placement. May be able to narrow this to only pieces that have not be placed..
-        # See if placement would leave a bounded void too small for any (remaining) part.
-
-        # # DEBUG: track highest piece id successfully placed.
-        # if piece.id > self.hid:
-        #     self.hrows = deepcopy(self.rows)
-        #     self.hid = piece.id
         
         # Return successful placement.
         return True
@@ -325,32 +294,6 @@ class Piece:
         else:
             return None
 
-    # ##
-    #  # Get (col, row) position of each spot of the piece, scanning from the upper-left corner, in 
-    #  # the current rotation.
-    #  # \returns the relative (col, row) coordinate of the next void in the piece rectangle in its current rotation, or (-1,-1), if no more
-    #  ##
-    # def nextVoid(self):
-    #     totalSpots = self.width * self.height
-    #     if self.lastVoidPos == -1:
-    #         nextPos = 0
-    #     else:
-    #         nextPos = self.lastVoidPos + 1
-    #     for nextPos in range(nextPos, totalSpots):
-    #         c, r = self.coordFromLinear(nextPos)
-    #         if self.rows[r][c] == 0:
-    #             self.lastVoidPos = nextPos
-    #             return c, r
-            
-    #     self.lastVoidPos = -1
-    #     return -1, -1
-
-    # ##
-    #  # Get (col,row) of 2D piece from linear position, starting with (0,0), and progressing left-right, then top-down.
-    #  ##
-    # def coordFromLinear(self, x):
-    #     return int(x % self.width), int(x / self.width)
-
     @classmethod
     def dumpAll(cls):
         for p in Piece.pieces:
@@ -365,64 +308,6 @@ class Piece:
     @classmethod
     def numPieces(cls):
         return len(Piece.pieces)
-
-# ##
-#  # Given a board, and a row and column coordinate, count the number of contiguous voids,
-#  # up to a maximum. A "void" is considered any spot on the board not overlapped with a piece
-#  # and not taken by pre-filled spots or by month or date picked (spots with value 0).
-#  # Note this does not consider the shape of the void, only that all voids are connected.
-#  # Called recursively to seek out all contiguous voids.
-#  # This is used to look see if a placed part would create a void that is too small for any
-#  # other piece to fill. Because our smallest part fills 5 spots on the board, any void
-#  # left after placing a part that leaves a void with less than 5 spots would make it
-#  # impossible to place another piece in that spot.
-#  # \param board Board object
-#  # \param row 0-based row
-#  # \param col 0-based column
-#  # \param max stop after this many contiguous voids found
-#  # \returns the number of contiguous voids from the starting position
-#  ##
-# cvRecurse = 0
-# cvCount = 0
-# def countVoids(board, col, row, max):
-#     global cvRecurse
-#     global cvCount
-
-#     if cvRecurse == 0:
-#         cvCount = 0
-#     cvRecurse += 1
-#     if board.isPlaceable(row, col):
-#         board.mark(col, row)    # mark board where we've counted a void - this will also mark it as a non-placeable spot
-#         cvCount += 1            # count it
-
-#         # Limit to max count of voids
-#         if cvCount >= max:
-#             cvRecurse -= 1
-#             if cvRecurse == 0:
-#                 board.removeMarks()
-#             return cvCount
-            
-#         # This is a spot on the board and it is void AND we've not already counted this spot - count and recurse further to look for others.
-#         for dir in range(4):    # 0=left, 1=up, 2=right, 3=down - direction to check next
-#             if dir == 0:    # try left next
-#                 countVoids(board, col-1, row,   max)
-#             elif dir == 1:  # try up next
-#                 countVoids(board, col,   row-1, max)
-#             elif dir == 2:  # try right next
-#                 countVoids(board, col+1, row,   max)
-#             elif dir == 3:  # try down next
-#                 countVoids(board, col,   row+1, max)
-#         cvRecurse -= 1
-#         if cvRecurse == 0:
-#             board.removeMarks()
-#         return cvCount   # return count of contiguous voids found
-#     else:
-#         # This spot on the board is not void - return maxsize to indicate as such, and so the value returned
-#         # for no voids found still satifies the minumum contiguous void count, if we have not voids in the part.
-#         cvRecurse -= 1
-#         if cvRecurse == 0:
-#             board.removeMarks()
-#         return sys.maxsize
 
 ##
  # Recursive function to try all placements and rotations for a given piece.
@@ -440,9 +325,7 @@ def fit(board, piece):
         piece.reset()   # reset piece back to its initial rotation
         for rotation in range(4):
             if board.place(piece, pos):
-                # DEBUG: track highest piece ID placed
-                # DEBUG: show every piece 2 placement
-                if piece.id == 2:
+                if piece.id == 1:
                     # os.system('clear')
                     print('=======')
                     board.dump()
@@ -493,13 +376,13 @@ def main():
         ]
     
     if fit(board, piece[0]):
-        print('Solution found!')
+        print('\n***** Solution found! *****')
         board.dump()
     else:
         print('No solution found')
         board.dumpDeepestFit()
 
-    print('Time: {:.01f}s'.format(time.time() - startTime))
+    print('\nTime: {:.01f}s'.format(time.time() - startTime))
 
 if __name__ == "__main__":
     main()
