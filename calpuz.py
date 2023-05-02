@@ -7,6 +7,7 @@ import time
 from copy import deepcopy
 
 quiet = False
+gonogo = False
 
 ##
  # Define a "board" object, which represents places to put all the pieces.
@@ -32,9 +33,6 @@ class Board:
     def reset(self):
         # Represent board as 2D array.
         self.rows = [[0]*self.height for i in range(self.width)]
-
-        # DEBUG: to track deepest fit.
-        self.hrows = [[0]*self.height for i in range(self.width)]
 
         # Establish unusable spots on the board.
         self.rows[0][6] = 9
@@ -141,7 +139,7 @@ class Board:
         # of the actual shape of the piece.
         if (x0 + piece.width) > self.width or (y0 + piece.height) > self.height:
             return False
-    
+
         # Superimpose piece onto board, by simpy adding it's ID to overlapping spots.
         for y in range(len(piece.rows)):
             for x in range(len(piece.rows[0])):
@@ -158,10 +156,10 @@ class Board:
         if minVoid < MIN_VOID_COUNT:
             self.remove(piece, pos)
             return False
-        
+
         # Return successful placement.
         return True
-    
+
     ##
      # Place a an 'X' mark on the given location on the board. Used to count voids and debugging.
      ##
@@ -203,7 +201,7 @@ class Board:
                 if c > 1:
                     return False
         return True
-    
+
     ##
      # Determine if a given coordinate on the board is "placeable", by the following criteria:
      #      o Must be within the boundaries of the board rectangle (not out of bounds of self.rows[][])
@@ -221,18 +219,12 @@ class Board:
                     sys.stdout.write(chr(c))    # for displaying marks, not number, for debugging
             sys.stdout.write('\n')
 
-    def dumpDeepestFit(self):
-        for r in self.hrows:
-            for c in r:
-                sys.stdout.write(str(c))
-            sys.stdout.write('\n')
-
     ##
      # Get (col,row) of 2D board array from linear increment.
      ##
     def coordFromLinear(self, x):
         return int(x % self.width), int(x / self.width)
-    
+
     ##
      # Get linear board position (spot) from (col,row) position.
      ##
@@ -306,7 +298,7 @@ class Piece:
     def firstPiece(cls):
         Piece.idx = 0
         return Piece.pieces[Piece.idx]
-    
+
     @classmethod
     def numPieces(cls):
         return len(Piece.pieces)
@@ -354,17 +346,24 @@ def fit(board, piece):
 
 def main():
     global quiet
+    global gonogo
 
     if len(sys.argv) > 1:
         dt = datetime.strptime(sys.argv[1], '%m/%d/%Y')
     else:
         dt = datetime.now()
     # dt = datetime.strptime('4/1/2023', '%m/%d/%Y')  # DEBUG
-    print('Solving for {}'.format(dt.strftime('%m/%d/%Y')))
 
     if 'quiet' in sys.argv:
         quiet = True
-          
+
+    if 'gonogo' in sys.argv:
+        gonogo = True
+        quiet = True
+
+    if not gonogo:
+        print('Solving for {}'.format(dt.strftime('%m/%d/%Y')))
+
     startTime = time.time()
 
     board = Board(dt)
@@ -381,15 +380,15 @@ def main():
             Piece([[1,1,1],[0,1,1]]), \
             Piece([[1,1,1],[1,1,1]]), \
         ]
-    
-    if fit(board, piece[0]):
-        print('\n***** Solution found! *****')
-        board.dump()
-    else:
-        print('No solution found')
-        board.dumpDeepestFit()
 
-    print('\nTime: {:.01f}s'.format(time.time() - startTime))
+    if fit(board, piece[0]):
+        if not gonogo:
+            print('\nSolution found in {:.01f}s:'.format(time.time() - startTime))
+            board.dump()
+        else:
+            print('{}: solved in {:.01f}s'.format(dt.strftime('%m/%d/%Y'), time.time() - startTime))
+    else:
+        print('{}: No solution found ({:.01f}s)'.format(dt.strftime('%m/%d/%Y'), time.time() - startTime))
 
 if __name__ == "__main__":
     main()
