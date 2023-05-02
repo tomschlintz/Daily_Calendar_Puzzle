@@ -10,7 +10,7 @@ YEAR = 2024
 
 def main():
 
-    for m in range(1, 13):
+    for m in range(7, 13):
         lastDayInMonth = calendar.monthrange(2024, m)[1]
         for d in range(1, lastDayInMonth+1):
             dstr = '{}/{}/{}'.format(m, d, YEAR)

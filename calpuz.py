@@ -118,7 +118,7 @@ class Board:
     def setDate(self):
         m = self.date.month - 1  # get 0-based month {0..11}
         d = self.day - 1    # get 0-based day of month {0..20}
-        self.rows[int(m / 12)][int(m % 12)] = 9
+        self.rows[int(m / 6)][int(m % 6)] = 9
         self.rows[int(2 + d/7)][int(d % 7)] = 9
 
     ##
@@ -310,7 +310,6 @@ class Piece:
  # \returns True when last piece has been placed
  ##
 recurse = 0
-highestId = 0
 def fit(board, piece):
     global recurse
     recurse += 1
