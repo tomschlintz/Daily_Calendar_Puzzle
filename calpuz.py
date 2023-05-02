@@ -79,16 +79,6 @@ class Board:
                             groupCounts[spotGroups[pos]] = 1   # start 1 spot for new group
                             groupId += 1                # increment group ID
 
-        # # Debug: dump group mapping
-        # print('\nMNMNMNMNMN')
-        # for i in range(self.locations):
-        #     if i and i % self.width == 0:
-        #         sys.stdout.write('\n')
-        #     if spotGroups[i] == -1:
-        #         sys.stdout.write('X')
-        #     else:
-        #         sys.stdout.write(str(spotGroups[i]))
-
         # Walk across each row, combining adjacent voids groups.
         # Note all voids have been assigned groups, above - now we're looking for adjacent horizontally.
         for ridx in range (len(self.rows)):
@@ -107,15 +97,15 @@ class Board:
                                     spotGroups[i] = spotGroups[ppos]
                             groupCounts[fromGroup] = 0    # zero-out group combined
 
-        # Debug: dump group mapping
-        print('\nMNMNMNMNMN')
-        for i in range(self.locations):
-            if i and i % self.width == 0:
-                sys.stdout.write('\n')
-            if spotGroups[i] == -1:
-                sys.stdout.write('X')
-            else:
-                sys.stdout.write(chr(spotGroups[i] + ord('a')))
+        # # Debug: dump group mapping
+        # print('\nMNMNMNMNMN')
+        # for i in range(self.locations):
+        #     if i and i % self.width == 0:
+        #         sys.stdout.write('\n')
+        #     if spotGroups[i] == -1:
+        #         sys.stdout.write('X')
+        #     else:
+        #         sys.stdout.write(chr(spotGroups[i] + ord('a')))
 
         # Find and return the smallest group of voids
         smallest = sys.maxsize
@@ -160,7 +150,12 @@ class Board:
                 # Continue to fill piece into board.
                 self.rows[y0+y][x0+x] += piece.rows[y][x] * piece.id
 
-        minVoids = self.smallestVoid()
+        # Check for too-small voids left by part, and disqualify if any found for the part.
+        MIN_VOID_COUNT = 5          # minimum contiguous voids, since the smallest part overlaps 5 spots
+        minVoid = self.smallestVoid()
+        if minVoid < MIN_VOID_COUNT:
+            self.remove(piece, pos)
+            return False
 
         # # Check for too-small voids left by part, and disqualify if any found for the part.
         # MIN_VOID_COUNT = 5          # minimum contiguous voids, since the smallest part overlaps 5 spots
@@ -477,7 +472,7 @@ def main():
         dt = datetime.strptime(sys.argv[1], '%m/%d/%Y')
     else:
         dt = datetime.now()
-    dt = datetime.strptime('4/1/2023', '%m/%d/%Y')  # DEBUG
+    # dt = datetime.strptime('4/1/2023', '%m/%d/%Y')  # DEBUG
     print('Solving for {}'.format(dt.strftime('%m/%d/%Y')))
           
     startTime = time.time()
@@ -504,7 +499,7 @@ def main():
         print('No solution found')
         board.dumpDeepestFit()
 
-    print('Time: {:.01fs'.format(time.time() - startTime))
+    print('Time: {:.01f}s'.format(time.time() - startTime))
 
 if __name__ == "__main__":
     main()
