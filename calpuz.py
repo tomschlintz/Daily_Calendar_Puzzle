@@ -235,10 +235,12 @@ class Piece:
     pieces = []
     idx = 0         # use this to itterate through pieces, by 0-based index
 
-    def __init__(self, rows):
+    def __init__(self, rows, rotations=4, flips=2):
         # Save parameters passed in object
         self.startRows = deepcopy(rows)
         self.id = len(Piece.pieces) + 1    # 1-based ID value for piece
+        self.rotations = rotations
+        self.flips = flips
         self.reset()
         Piece.pieces.append(self)
 
@@ -251,6 +253,20 @@ class Piece:
         self.height = len(self.rows)
         self.rotation = 0   # Track current rotation for the piece
 
+    ##
+     # Flip piece top to bottom.
+     ##
+    def flip(self):
+        for y in range(int(len(self.rows) / 2)):     # 2:0, 3:0, 4:0,1
+            tmpRow = self.rows[y]
+            self.rows[y] = self.rows[self.height-y-1]
+            self.rows[self.height-y-1] = tmpRow
+
+    ##
+     # Rotate piece CCW. The number of rotations should be 4 for pieces that
+     # are not radially symmetrical, or 2 for those that are.
+     # \returns the next rotation enumeration, or zero if all rotations exhausted.
+     ##
     def rotate(self):
         # Create new rows, where width is height, heith is width.
         newRows = [[0]*self.height for i in range(self.width)]
@@ -268,7 +284,7 @@ class Piece:
         newWidth = self.height
         self.height = self.width
         self.width = newWidth
-        self.rotation = (self.rotation + 1) % 4     # 0=none, 1=CCW once, 2=CCW twice, 3=CCW thrice
+        self.rotation = (self.rotation + 1) % self.rotations     # 0=none, 1=CCW once, 2=CCW twice, 3=CCW thrice
         return self.rotation    # return final rotation - rotates to zero if all rotations exhausted
 
     def dump(self):
@@ -316,29 +332,31 @@ def fit(board, piece):
     # print(recurse)
     for pos in range(board.locations):
         piece.reset()   # reset piece back to its initial rotation
-        for rotation in range(4):
-            if board.place(piece, pos):
-                if not quiet:
-                    if piece.id == 1:
-                        # os.system('clear')
-                        print('=======')
-                        board.dump()
-                nextPiece = piece.nextPiece()
-                if nextPiece:
-                    if fit(board, nextPiece):
-                        recurse -= 1
-                        return True
+        for flip in range(piece.flips):
+            for rotation in range(piece.rotations):
+                if board.place(piece, pos):
+                    if not quiet:
+                        if piece.id == 1:
+                            # os.system('clear')
+                            print('=======')
+                            board.dump()
+                    nextPiece = piece.nextPiece()
+                    if nextPiece:
+                        if fit(board, nextPiece):
+                            recurse -= 1
+                            return True
+                        else:
+                            # Remove from board before trying more places and rotations.
+                            board.remove(piece, pos)
+                            piece.rotate()
                     else:
-                        # Remove from board before trying more places and rotations.
-                        board.remove(piece, pos)
-                        piece.rotate()
+                        recurse -= 1
+                        return True    # No more pieces to place
                 else:
-                    recurse -= 1
-                    return True    # No more pieces to place
-            else:
-                # Piece could not be placed, due to fit on board, or overlap.
-                # Go to next rotation.
-                piece.rotate()
+                    # Piece could not be placed, due to fit on board, or overlap.
+                    # Go to next rotation.
+                    piece.rotate()
+            piece.flip()
     # All positions and rotations tried: got up a level and try again.
     recurse -= 1
     return False
@@ -370,14 +388,14 @@ def main():
     # Establish all pieces used. Initial orientation for each is arbitrary.
     piece = \
         [ \
-            Piece([[1,0,1],[1,1,1]]), \
-            Piece([[0,0,1],[1,1,1],[1,0,0]]), \
-            Piece([[1,1,1],[1,0,0],[1,0,0]]), \
-            Piece([[0,0,1,1],[1,1,1,0]]), \
-            Piece([[1,1,1,1],[1,0,0,0]]), \
-            Piece([[1,1,1,1],[0,0,1,0]]), \
-            Piece([[1,1,1],[0,1,1]]), \
-            Piece([[1,1,1],[1,1,1]]), \
+            Piece([[1,0,1],[1,1,1]], rotations=4, flips=1), \
+            Piece([[0,0,1],[1,1,1],[1,0,0]], rotations=2, flips=2), \
+            Piece([[1,1,1],[1,0,0],[1,0,0]], rotations=4, flips=1), \
+            Piece([[0,0,1,1],[1,1,1,0]], rotations=4, flips=2), \
+            Piece([[1,1,1,1],[1,0,0,0]], rotations=4, flips=2), \
+            Piece([[1,1,1,1],[0,0,1,0]], rotations=4, flips=2), \
+            Piece([[1,1,1],[0,1,1]], rotations=4, flips=2), \
+            Piece([[1,1,1],[1,1,1]], rotations=2, flips=1), \
         ]
 
     if fit(board, piece[0]):
