@@ -19,12 +19,11 @@ gonogo = False
  # OR with already placed pieces.
  ##
 class Board:
-    def __init__(self, date):
+    def __init__(self, month, day):
         self.width = 7
         self.height = 7
-        self.date = date
-        self.month = self.date.month
-        self.day = self.date.day
+        self.month = month
+        self.day = day
         self.locations = self.width * self.height
         self.hid = 0
 
@@ -116,7 +115,7 @@ class Board:
 
     # Mark spots on board for month and day that can't be covered.
     def setDate(self):
-        m = self.date.month - 1  # get 0-based month {0..11}
+        m = self.month - 1  # get 0-based month {0..11}
         d = self.day - 1    # get 0-based day of month {0..20}
         self.rows[int(m / 6)][int(m % 6)] = 9
         self.rows[int(2 + d/7)][int(d % 7)] = 9
@@ -364,12 +363,22 @@ def fit(board, piece):
 def main():
     global quiet
     global gonogo
+    MONTH_STR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
+    # If date specified, parse month and day, otherwise use today.
     if len(sys.argv) > 1:
-        dt = datetime.strptime(sys.argv[1], '%m/%d/%Y')
+        parts = sys.argv[1].split('/')
+        if len(parts) < 2:
+            parts = sys.argv[1].split('-')
+        if len(parts) < 2:
+            print('Invalid date format')
+            return
+        month = int(parts[0])
+        day = int(parts[1])
     else:
         dt = datetime.now()
-    # dt = datetime.strptime('4/1/2023', '%m/%d/%Y')  # DEBUG
+        month = dt.month
+        day = dt.day
 
     if 'quiet' in sys.argv:
         quiet = True
@@ -379,11 +388,11 @@ def main():
         quiet = True
 
     if not gonogo:
-        print('Solving for {}'.format(dt.strftime('%m/%d/%Y')))
+        print('Solving for {} {}'.format(MONTH_STR[month-1], day))
 
     startTime = time.time()
 
-    board = Board(dt)
+    board = Board(month, day)
 
     # Establish all pieces used. Initial orientation for each is arbitrary.
     piece = \
@@ -398,14 +407,17 @@ def main():
             Piece([[1,1,1],[1,1,1]], rotations=2, flips=1), \
         ]
 
-    if fit(board, piece[0]):
-        if not gonogo:
-            print('\nSolution found in {:.01f}s:'.format(time.time() - startTime))
-            board.dump()
+    try:
+        if fit(board, piece[0]):
+            if not gonogo:
+                print('\nSolution found in {:.01f}s:'.format(time.time() - startTime))
+                board.dump()
+            else:
+                print('{}: solved in {:.01f}s'.format(dt.strftime('%m/%d/%Y'), time.time() - startTime))
         else:
-            print('{}: solved in {:.01f}s'.format(dt.strftime('%m/%d/%Y'), time.time() - startTime))
-    else:
-        print('{}: No solution found ({:.01f}s)'.format(dt.strftime('%m/%d/%Y'), time.time() - startTime))
+            print('{}: No solution found ({:.01f}s)'.format(dt.strftime('%m/%d/%Y'), time.time() - startTime))
+    except KeyboardInterrupt:
+        print('\nStopped')
 
 if __name__ == "__main__":
     main()
